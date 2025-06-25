@@ -1,0 +1,250 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(225, 15%, 6%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(225, 15%, 12%);
+  --muted-foreground: hsl(0, 0%, 70%);
+  --popover: hsl(225, 15%, 8%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(225, 15%, 10%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(225, 15%, 20%);
+  --input: hsl(225, 15%, 15%);
+  --primary: hsl(33, 100%, 75%);
+  --primary-foreground: hsl(225, 15%, 6%);
+  --secondary: hsl(225, 15%, 15%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(225, 15%, 15%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 84%, 60%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(33, 100%, 75%);
+  --radius: 1rem;
+  
+  /* Premium wellness colors */
+  --charcoal: hsl(225, 15%, 6%);
+  --premium-gold: hsl(33, 100%, 75%);
+  --glass-white: hsla(0, 0%, 100%, 0.08);
+  --glass-border: hsla(0, 0%, 100%, 0.12);
+  --body-color: hsl(19, 100%, 68%);
+  --mind-color: hsl(142, 76%, 66%);
+  --soul-color: hsl(258, 90%, 75%);
+  --success: hsl(142, 76%, 66%);
+  --warning: hsl(45, 93%, 70%);
+}
+
+.dark {
+  --background: hsl(20, 14.3%, 8%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(20, 14.3%, 15%);
+  --muted-foreground: hsl(0, 0%, 70%);
+  --popover: hsl(20, 14.3%, 8%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(20, 14.3%, 12%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(20, 14.3%, 20%);
+  --input: hsl(20, 14.3%, 20%);
+  --primary: hsl(20, 57%, 74%);
+  --primary-foreground: hsl(20, 14.3%, 8%);
+  --secondary: hsl(20, 14.3%, 15%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(20, 14.3%, 15%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(20, 57%, 74%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', Inter, system-ui, sans-serif;
+    background: linear-gradient(180deg, hsl(var(--charcoal)) 0%, hsl(225, 15%, 4%) 100%);
+    color: hsl(0, 0%, 98%);
+    touch-action: manipulation;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+@layer components {
+  .glassmorphic {
+    background: hsla(0, 0%, 100%, 0.06);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid hsla(0, 0%, 100%, 0.1);
+    box-shadow: 
+      0 4px 24px hsla(0, 0%, 0%, 0.25),
+      inset 0 1px 0 hsla(0, 0%, 100%, 0.1);
+  }
+  
+  .glassmorphic-dark {
+    background: hsla(0, 0%, 0%, 0.2);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid hsla(0, 0%, 100%, 0.08);
+    box-shadow: 
+      0 2px 16px hsla(0, 0%, 0%, 0.3),
+      inset 0 1px 0 hsla(0, 0%, 100%, 0.05);
+  }
+  
+  .voice-pulse {
+    animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+  }
+  
+  .progress-ring {
+    transform: rotate(-90deg);
+  }
+  
+  .swipe-indicator {
+    animation: swipe-hint 3s ease-in-out infinite;
+  }
+
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .mobile-container {
+    max-width: 428px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 12px);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pillar-body {
+    color: hsl(var(--body-color));
+  }
+
+  .pillar-mind {
+    color: hsl(var(--mind-color));
+  }
+
+  .pillar-soul {
+    color: hsl(var(--soul-color));
+  }
+
+  .bg-pillar-body {
+    background-color: hsl(var(--body-color));
+  }
+
+  .bg-pillar-mind {
+    background-color: hsl(var(--mind-color));
+  }
+
+  .bg-pillar-soul {
+    background-color: hsl(var(--soul-color));
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@keyframes pulse-ring {
+  0% { 
+    transform: scale(1); 
+    opacity: 1; 
+  }
+  50% { 
+    transform: scale(1.1); 
+    opacity: 0.7; 
+  }
+  100% { 
+    transform: scale(1); 
+    opacity: 1; 
+  }
+}
+
+@keyframes swipe-hint {
+  0%, 100% { 
+    transform: translateX(0); 
+    opacity: 0.6; 
+  }
+  50% { 
+    transform: translateX(10px); 
+    opacity: 1; 
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Mobile-specific typography scaling */
+@media (max-width: 428px) {
+  html {
+    font-size: 16px;
+  }
+  
+  .text-2xl {
+    font-size: 1.75rem;
+  }
+  
+  .text-xl {
+    font-size: 1.375rem;
+  }
+  
+  .text-lg {
+    font-size: 1.125rem;
+  }
+}
+
+/* Touch-friendly spacing */
+.touch-spacing {
+  padding: 16px;
+}
+
+.touch-spacing-sm {
+  padding: 12px;
+}
+
+.touch-spacing-lg {
+  padding: 24px;
+}
+
+/* Status bar simulation */
+.status-bar {
+  height: 48px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  font-size: 14px;
+  font-weight: 600;
+}
