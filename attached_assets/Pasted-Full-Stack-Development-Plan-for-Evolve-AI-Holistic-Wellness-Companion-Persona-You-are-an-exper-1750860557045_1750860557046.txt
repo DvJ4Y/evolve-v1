@@ -1,0 +1,101 @@
+Full-Stack Development Plan for "Evolve AI" - Holistic Wellness Companion
+
+Persona: You are an expert Full-Stack AI Application Developer, encompassing the roles of Product Manager, Lead Frontend Engineer (React Native/Expo for Mobile, Next.js for Web), Lead Backend Engineer (Supabase), and Lead AI Engineer (Google Gemini API, ElevenLabs).
+
+Overall Objective:
+I need your assistance to "build" a holistic wellness application called "Evolve AI". Your task is to provide a comprehensive, actionable development plan. This plan should include architectural considerations, UI/UX design directives, feature breakdowns, Supabase schema designs, AI integration strategies (specifically with Google Gemini API), and illustrative code snippets for key functionalities. The application must be voice-first, visually stunning with an iOS-inspired glassmorphism UI, incorporate gamification, and prioritize an intuitive user journey.
+
+Key Application Pillars:
+
+BODY: Physical health, exercise, nutrition, supplement tracking.
+
+MIND: Mental well-being, meditation, focus, cognitive activities.
+
+SOUL: Spiritual growth, reflection, purpose-driven activities.
+
+Core UI/UX & Interaction Principles:
+
+Aesthetic: Sleek, futuristic, iOS-inspired glassmorphism (translucent, blurred elements, depth). Use meaningful images over simple icons where appropriate. Include programmatic graphics for unique visual elements (e.g., using React for dynamic SVGs/animations).
+
+Voice-First: Primary interaction through a prominent, always-accessible voice button (bottom-center).
+
+Minimalist Navigation: No traditional hamburger menu. Intuitive, contextual access to features.
+
+Profile Access: Top-right corner (user avatar/icon).
+
+Homepage as Dynamic Dashboard: Glanceable key stats and achievements, becoming richer with user activity.
+
+Gamification & Rewards: Visually integrated to motivate users (progress rings, streaks, celebratory visuals).
+
+Responsive: Mobile-first, but with a corresponding beautiful web experience.
+
+Technology Stack Assumptions:
+
+Frontend (Mobile): React Native with Expo (TypeScript, Tailwind CSS or compatible styling for glassmorphism).
+
+Frontend (Web): Next.js (App Router, TypeScript, Tailwind CSS).
+
+Backend & Database: Supabase (Auth, PostgreSQL, Edge Functions, Storage).
+
+Core LLM & Multimodal AI: Google Gemini API.
+
+Text-to-Speech (TTS): ElevenLabs API.
+
+Speech-to-Text (STT): Device native capabilities or Gemini API's STT (if suitable).
+
+Detailed Task Breakdown - Provide outputs for each section:
+
+I. Foundational Setup & Architecture:
+1. Project Structure: Recommend a monorepo structure (e.g., using Turborepo or similar) OR separate project structures for mobile, web, and shared components/logic. Justify your choice.
+2. Core UI Shell:
+* Describe the implementation of the main app layout (for both React Native/Expo and Next.js) embodying the glassmorphism aesthetic for navigation bars, backgrounds.
+* Provide example code snippets for a basic glassmorphic component using Tailwind CSS (or styled-components if preferred for advanced effects).
+* Detail the placement and initial design of the bottom-center voice button and top-right profile icon.
+3. Authentication: Outline the Google Sign-Up/Sign-In flow using Supabase Auth. Provide example code for frontend integration.
+
+II. User Onboarding Journey:
+1. Flow: Describe the screen-by-screen flow (Welcome animation, Greeting, Basic Info, Deeper Dive Goals, Product/Supplement Input).
+2. UI for Input: How will "bubble" options for simple choices (age, weight etc.) be presented alongside voice/type input? Provide UI mock-up descriptions or simple component code ideas.
+3. AI for Conversational Goals:
+* For Body, Mind, Soul goals: Provide an example prompt for the Gemini API to parse conversational user input (e.g., "I want to run three times a week and feel less stressed") into structured JSON data (key themes, intents).
+4. Supplement/Food Label Input:
+* How will users upload photos? (Supabase Storage integration).
+* Provide an example prompt for the Gemini API (Vision capabilities) to perform OCR and extract key information (product name, ingredients, dosage) from an uploaded label image.
+5. Supabase Schema for Onboarding Data: Design the profiles table in Supabase to store all onboarding information (name, age, weight, height, initial goals (raw & AI-processed), links to uploaded supplement images/data). Provide SQL DDL.
+
+III. Homepage & Main Dashboard:
+1. UI Design: Describe the layout. How will the top glanceable stats be displayed dynamically? How will pathways to Body, Mind, Soul pillars be presented?
+2. Dynamic Stats Logic: Outline how data from Supabase will feed these top stats.
+3. Expandable Analytics: How does this snippet expand or link to the full Analytics section?
+
+IV. Core Pillar Feature Implementation (Body, Mind, Soul):
+* For each pillar:
+1. Logging UI (GUI Path): Describe the UI for manually adding activities (e.g., forms for workouts, meal logs, meditation sessions). How are pre-added supplements/foods (from Profile) leveraged for easier logging?
+2. Voice Logging AI Flow:
+* Detail the STT -> Gemini API (NLU) -> Backend Logic -> Supabase flow.
+* Provide an example Gemini API prompt to parse a complex voice command like: "Log workout: 3 sets of 10 reps bench press at 80kg, and I just took my Vitamin D supplement." (Gemini should recognize entities and intent, and understand to cross-reference the specific "Vitamin D" from the user's Profile).
+3. Goal Setting & Tracking: How can users set goals? How is progress visualized within each pillar?
+4. Supabase Schema for Activity Logs: Design an activity_logs table (include fields like user_id, pillar_type (BODY, MIND, SOUL), activity_type (workout, meditation, gratitude), details_json, duration_minutes, created_at). Provide SQL DDL. Consider if separate tables for specific activity types are better.
+
+V. Profile Section:
+1. UI/UX: Describe the layout. How will users view/edit personal info, manage their supplement library (add new via photo, edit existing), and view uploaded reports?
+2. Supplement Library Management: How is the data from initial onboarding (and subsequent additions) managed and presented? What fields are needed in a user_supplements table (linked to profiles)?
+
+VI. Analytics Section:
+1. Visual Design: Describe how charts, graphs, and achievements will be presented using the glassmorphism style. What types of visualizations would be most impactful for motivation?
+2. AI-Generated Insights (Future Consideration): Briefly suggest how Gemini API could analyze patterns in activity_logs to provide personalized insights.
+
+VII. Gamification & Rewards:
+1. Visual Representation: Suggest how streaks, achievements (badges), and progress towards rewards can be visually integrated into the UI.
+2. Logic: Briefly outline the backend logic for tracking streaks and unlocking achievements based on activity logs.
+
+VIII. Backend (Supabase Specifics):
+1. Edge Functions: Identify key scenarios where Supabase Edge Functions would be used (e.g., calling Gemini API, processing complex logging logic, validating data before DB write). Provide a pseudo-code example for one such function.
+2. Database Security: Briefly outline important Row Level Security (RLS) policies for Supabase tables (e.g., users can only access their own data).
+
+IX. Iterative Development & Next Steps:
+1. Based on this initial plan, what would be the first 3-5 critical features/components to implement for an MVP?
+2. What are the key challenges you foresee in this project?
+
+Output Format:
+Please provide your response in well-structured Markdown. Use code blocks for code snippets (specify language e.g., tsx, sql, json). Use headings and bullet points for clarity. Be detailed and provide actionable insights, examples, and justification for your recommendations.
