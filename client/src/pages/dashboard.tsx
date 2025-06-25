@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Mic, BarChart3, Target, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ interface DashboardData {
 
 export default function Dashboard() {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
+  const [isMenuVisible, setIsMenuVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   const { isListening, startListening, stopListening } = useVoice();
 
   // For demo purposes, using userId 1
@@ -30,6 +32,26 @@ export default function Dashboard() {
   const { data: dashboardData, isLoading } = useQuery<DashboardData>({
     queryKey: [`/api/dashboard/${userId}`],
   });
+
+  // Auto-hide menu on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        // Scrolling down - hide menu
+        setIsMenuVisible(false);
+      } else {
+        // Scrolling up - show menu
+        setIsMenuVisible(true);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
 
   const handleVoiceActivate = () => {
     setIsVoiceActive(true);
@@ -152,7 +174,7 @@ export default function Dashboard() {
       </div>
 
       {/* Three Pillars Navigation */}
-      <div className="px-6 mb-32">
+      <div className="px-6 mb-40">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold">Your Wellness Journey</h2>
         </div>
@@ -199,36 +221,60 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Bottom Navigation with Voice Button */}
-      <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md pb-8">
-        <GlassmorphicCard className="rounded-3xl mx-6 px-8 py-6">
-          <div className="flex items-center justify-center mb-6">
+      {/* Floating Voice Button with 3D Effect */}
+      <div className={`fixed bottom-24 left-1/2 transform -translate-x-1/2 z-30 transition-all duration-500 ${
+        isMenuVisible ? 'translate-y-0' : 'translate-y-4'
+      }`}>
+        <div className="relative">
+          {/* 3D Shadow Effect */}
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-400/30 to-orange-500/30 rounded-full blur-xl scale-110 animate-pulse"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-400/20 to-orange-500/20 rounded-full blur-2xl scale-125"></div>
+          
+          {/* Main Voice Button */}
+          <div className="relative">
             <VoiceButton 
               onClick={handleVoiceActivate}
               isListening={isListening}
-              className="shadow-xl"
+              className="shadow-2xl transform hover:scale-110 transition-all duration-300 border-4 border-white/20"
               size="lg"
             />
           </div>
-          
-          {/* Secondary Navigation */}
-          <div className="flex items-center justify-around">
-            <Button variant="ghost" className="flex flex-col items-center space-y-2 py-3 px-6 rounded-2xl hover:bg-white/10 transition-all duration-300">
-              <Menu className="w-6 h-6 text-white/70" />
-              <span className="text-xs text-white/70 font-medium">Dashboard</span>
-            </Button>
-            
-            <Button variant="ghost" className="flex flex-col items-center space-y-2 py-3 px-6 rounded-2xl hover:bg-white/10 transition-all duration-300">
-              <BarChart3 className="w-6 h-6 text-white/70" />
-              <span className="text-xs text-white/70 font-medium">Analytics</span>
-            </Button>
-            
-            <Button variant="ghost" className="flex flex-col items-center space-y-2 py-3 px-6 rounded-2xl hover:bg-white/10 transition-all duration-300">
-              <Target className="w-6 h-6 text-white/70" />
-              <span className="text-xs text-white/70 font-medium">Goals</span>
-            </Button>
-          </div>
-        </GlassmorphicCard>
+        </div>
+      </div>
+
+      {/* Bottom Navigation Menu with Auto-Hide */}
+      <div className={`fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md transition-all duration-500 z-20 ${
+        isMenuVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
+      }`}>
+        <div className="mx-6 mb-6">
+          <GlassmorphicCard className="px-8 py-4 border-t-2 border-white/20">
+            <div className="flex items-center justify-around">
+              <Button 
+                variant="ghost" 
+                className="flex flex-col items-center space-y-1 py-3 px-4 rounded-2xl hover:bg-white/10 transition-all duration-300 touch-target"
+              >
+                <Menu className="w-6 h-6 text-amber-400" />
+                <span className="text-xs text-white/90 font-medium">Dashboard</span>
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                className="flex flex-col items-center space-y-1 py-3 px-4 rounded-2xl hover:bg-white/10 transition-all duration-300 touch-target"
+              >
+                <BarChart3 className="w-6 h-6 text-white/70" />
+                <span className="text-xs text-white/70 font-medium">Analytics</span>
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                className="flex flex-col items-center space-y-1 py-3 px-4 rounded-2xl hover:bg-white/10 transition-all duration-300 touch-target"
+              >
+                <Target className="w-6 h-6 text-white/70" />
+                <span className="text-xs text-white/70 font-medium">Goals</span>
+              </Button>
+            </div>
+          </GlassmorphicCard>
+        </div>
       </div>
 
       {/* Voice Overlay */}
