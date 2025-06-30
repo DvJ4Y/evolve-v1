@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { registerMVPRoutes } from "./routes-mvp";
 import { setupVite, serveStatic, log } from "./vite";
+import { testDatabaseConnection } from "./db";
 
 const app = express();
 app.use(express.json());
@@ -38,6 +39,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Test database connection on startup
+  const dbConnected = await testDatabaseConnection();
+  
   // Register MVP routes first (they take precedence)
   const server = await registerMVPRoutes(app);
   
@@ -88,7 +92,7 @@ app.use((req, res, next) => {
     
     // Log configuration status
     log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    log(`Database: ${process.env.DATABASE_URL ? 'Connected' : 'Memory fallback'}`);
-    log(`Gemini API: ${process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY ? 'Configured' : 'Fallback mode'}`);
+    log(`Database: ${dbConnected ? 'Connected ✅' : 'Memory fallback ⚠️'}`);
+    log(`Gemini API: ${process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY ? 'Configured ✅' : 'Fallback mode ⚠️'}`);
   });
 })();

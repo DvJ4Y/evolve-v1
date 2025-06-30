@@ -1,5 +1,4 @@
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { getDatabase } from "./db";
 import { eq, desc } from "drizzle-orm";
 import { mvpActivityLogs, users, type User, type InsertUser, type MvpActivityLog, type InsertMvpActivityLog } from "@shared/schema";
 
@@ -15,99 +14,106 @@ export interface IMVPStorage {
   getMvpActivityLogs(userId: number, limit?: number): Promise<MvpActivityLog[]>;
 }
 
-// Database storage implementation
+// Database storage implementation with memory fallback
 export class MVPDatabaseStorage implements IMVPStorage {
-  private db;
+  private memStorage = new MVPMemStorage();
 
-  constructor() {
-    if (process.env.DATABASE_URL) {
-      const sql = neon(process.env.DATABASE_URL);
-      this.db = drizzle(sql);
-    } else {
-      console.warn("DATABASE_URL not configured - using memory storage");
-      this.db = null;
+  private async withFallback<T>(
+    operation: () => Promise<T>,
+    fallbackOperation: () => Promise<T>,
+    operationName: string
+  ): Promise<T> {
+    const db = getDatabase();
+    
+    if (!db) {
+      console.log(`Database not available for ${operationName}, using memory storage`);
+      return fallbackOperation();
+    }
+
+    try {
+      return await operation();
+    } catch (error) {
+      console.error(`Database error in ${operationName}, falling back to memory:`, error);
+      return fallbackOperation();
     }
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    if (!this.db) return this.memStorage.getUser(id);
-    
-    try {
-      const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
-      return result[0];
-    } catch (error) {
-      console.error("Database error in getUser:", error);
-      return this.memStorage.getUser(id);
-    }
+    return this.withFallback(
+      async () => {
+        const db = getDatabase()!;
+        const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+        return result[0];
+      },
+      () => this.memStorage.getUser(id),
+      'getUser'
+    );
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    if (!this.db) return this.memStorage.getUserByEmail(email);
-    
-    try {
-      const result = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
-      return result[0];
-    } catch (error) {
-      console.error("Database error in getUserByEmail:", error);
-      return this.memStorage.getUserByEmail(email);
-    }
+    return this.withFallback(
+      async () => {
+        const db = getDatabase()!;
+        const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        return result[0];
+      },
+      () => this.memStorage.getUserByEmail(email),
+      'getUserByEmail'
+    );
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    if (!this.db) return this.memStorage.createUser(insertUser);
-    
-    try {
-      const result = await this.db.insert(users).values(insertUser).returning();
-      return result[0];
-    } catch (error) {
-      console.error("Database error in createUser:", error);
-      return this.memStorage.createUser(insertUser);
-    }
+    return this.withFallback(
+      async () => {
+        const db = getDatabase()!;
+        const result = await db.insert(users).values(insertUser).returning();
+        return result[0];
+      },
+      () => this.memStorage.createUser(insertUser),
+      'createUser'
+    );
   }
 
   async updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined> {
-    if (!this.db) return this.memStorage.updateUser(id, updates);
-    
-    try {
-      const result = await this.db.update(users).set(updates).where(eq(users.id, id)).returning();
-      return result[0];
-    } catch (error) {
-      console.error("Database error in updateUser:", error);
-      return this.memStorage.updateUser(id, updates);
-    }
+    return this.withFallback(
+      async () => {
+        const db = getDatabase()!;
+        const result = await db.update(users).set(updates).where(eq(users.id, id)).returning();
+        return result[0];
+      },
+      () => this.memStorage.updateUser(id, updates),
+      'updateUser'
+    );
   }
 
   async createMvpActivityLog(activity: InsertMvpActivityLog): Promise<MvpActivityLog> {
-    if (!this.db) return this.memStorage.createMvpActivityLog(activity);
-    
-    try {
-      const result = await this.db.insert(mvpActivityLogs).values(activity).returning();
-      return result[0];
-    } catch (error) {
-      console.error("Database error in createMvpActivityLog:", error);
-      return this.memStorage.createMvpActivityLog(activity);
-    }
+    return this.withFallback(
+      async () => {
+        const db = getDatabase()!;
+        const result = await db.insert(mvpActivityLogs).values(activity).returning();
+        return result[0];
+      },
+      () => this.memStorage.createMvpActivityLog(activity),
+      'createMvpActivityLog'
+    );
   }
 
   async getMvpActivityLogs(userId: number, limit = 50): Promise<MvpActivityLog[]> {
-    if (!this.db) return this.memStorage.getMvpActivityLogs(userId, limit);
-    
-    try {
-      const result = await this.db
-        .select()
-        .from(mvpActivityLogs)
-        .where(eq(mvpActivityLogs.userId, userId))
-        .orderBy(desc(mvpActivityLogs.timestamp))
-        .limit(limit);
-      return result;
-    } catch (error) {
-      console.error("Database error in getMvpActivityLogs:", error);
-      return this.memStorage.getMvpActivityLogs(userId, limit);
-    }
+    return this.withFallback(
+      async () => {
+        const db = getDatabase()!;
+        const result = await db
+          .select()
+          .from(mvpActivityLogs)
+          .where(eq(mvpActivityLogs.userId, userId))
+          .orderBy(desc(mvpActivityLogs.timestamp))
+          .limit(limit);
+        return result;
+      },
+      () => this.memStorage.getMvpActivityLogs(userId, limit),
+      'getMvpActivityLogs'
+    );
   }
-
-  // Fallback memory storage for when database is not available
-  private memStorage = new MVPMemStorage();
 }
 
 // Memory storage implementation (fallback)
