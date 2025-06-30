@@ -36,7 +36,7 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
       // In production, this would integrate with actual Google OAuth
       const mockGoogleUser = {
         name: "Demo User",
-        email: "demo@evolveai.com",
+        email: "alex@evolveai.com",
         avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150"
       };
 
