@@ -10,6 +10,7 @@ export const users = pgTable("users", {
   age: integer("age"),
   weight: decimal("weight", { precision: 5, scale: 2 }),
   height: decimal("height", { precision: 5, scale: 2 }),
+  primaryWellnessGoal: text("primary_wellness_goal"),
   goals: jsonb("goals").$type<{
     body: string[];
     mind: string[];
@@ -24,6 +25,25 @@ export const users = pgTable("users", {
   }>>().default([]),
   currentStreak: integer("current_streak").default(0),
   longestStreak: integer("longest_streak").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// MVP Activity Logs - Simplified for quick launch
+export const mvpActivityLogs = pgTable("mvp_activity_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  rawTextInput: text("raw_text_input").notNull(),
+  detectedIntent: text("detected_intent", { 
+    enum: ["workout", "food_intake", "supplement_intake", "meditation", "general_activity_log"] 
+  }).notNull(),
+  extractedKeywords: jsonb("extracted_keywords_json").$type<{
+    keywords: string[];
+    duration?: string;
+    intensity?: string;
+    quantity?: string;
+    [key: string]: any;
+  }>(),
+  timestamp: timestamp("timestamp").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -102,6 +122,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
   longestStreak: true,
 });
 
+export const insertMvpActivityLogSchema = createInsertSchema(mvpActivityLogs).omit({
+  id: true,
+  createdAt: true,
+  timestamp: true,
+});
+
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
   id: true,
   createdAt: true,
@@ -122,6 +148,8 @@ export const insertGoalSchema = createInsertSchema(goals).omit({
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type MvpActivityLog = typeof mvpActivityLogs.$inferSelect;
+export type InsertMvpActivityLog = z.infer<typeof insertMvpActivityLogSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 export type DailyStats = typeof dailyStats.$inferSelect;
@@ -138,3 +166,5 @@ export type WellnessStats = {
   gratitude: number;
   reflection: number;
 };
+
+export type MVPIntentType = "workout" | "food_intake" | "supplement_intake" | "meditation" | "general_activity_log";
