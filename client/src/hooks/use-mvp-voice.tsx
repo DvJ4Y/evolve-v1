@@ -39,6 +39,9 @@ export function useMVPVoice() {
   const [textInput, setTextInput] = useState("");
   const [speechSupported] = useState(checkSpeechSupport());
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const retryCountRef = useRef(0);
+  const maxRetries = 2;
+  const retryDelay = 1000; // 1 second delay between retries
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -108,18 +111,7 @@ export function useMVPVoice() {
     },
   });
 
-  const startListening = useCallback(() => {
-    // Check if speech recognition is supported
-    if (!speechSupported) {
-      toast({
-        title: "Speech Recognition Not Available",
-        description: "Your browser doesn't support speech recognition. You can type instead.",
-        variant: "destructive",
-      });
-      setShowTextInput(true);
-      return;
-    }
-
+  const startSpeechRecognition = useCallback(() => {
     const SpeechRecognition = getSpeechRecognition();
     if (!SpeechRecognition) {
       setShowTextInput(true);
@@ -130,7 +122,7 @@ export function useMVPVoice() {
       const recognition = new SpeechRecognition();
       
       // Configure recognition settings
-      recognition.continuous = false; // Changed to false for better reliability
+      recognition.continuous = false;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
       recognition.maxAlternatives = 1;
@@ -168,6 +160,8 @@ export function useMVPVoice() {
         if (transcript.trim()) {
           console.log("📝 Processing transcript:", transcript);
           voiceLogMutation.mutate(transcript);
+          // Reset retry count on successful completion
+          retryCountRef.current = 0;
         } else {
           toast({
             title: "No Speech Detected",
@@ -181,6 +175,29 @@ export function useMVPVoice() {
       recognition.onerror = (event) => {
         console.error("🚨 Speech recognition error:", event.error);
         setIsListening(false);
+        
+        // Handle network errors with retry mechanism
+        if (event.error === 'network' && retryCountRef.current < maxRetries) {
+          retryCountRef.current += 1;
+          console.log(`🔄 Retrying speech recognition (attempt ${retryCountRef.current}/${maxRetries})`);
+          
+          toast({
+            title: "Network Issue Detected",
+            description: `Retrying voice input (${retryCountRef.current}/${maxRetries})...`,
+          });
+          
+          // Retry after a short delay
+          setTimeout(() => {
+            if (!isListening) { // Only retry if not already listening
+              startSpeechRecognition();
+            }
+          }, retryDelay);
+          
+          return; // Don't show error message or text input yet
+        }
+        
+        // Reset retry count for non-network errors or after max retries
+        retryCountRef.current = 0;
         
         let errorMessage = "Speech recognition error occurred.";
         let shouldShowTextInput = true;
@@ -196,7 +213,7 @@ export function useMVPVoice() {
             errorMessage = "Microphone permission denied. You can type instead.";
             break;
           case 'network':
-            errorMessage = "Network error with speech service. You can type instead.";
+            errorMessage = "Network connection failed after retries. You can type instead.";
             break;
           case 'service-not-allowed':
             errorMessage = "Speech service not allowed. You can type instead.";
@@ -220,6 +237,7 @@ export function useMVPVoice() {
       recognition.start();
     } catch (error) {
       console.error("Failed to start speech recognition:", error);
+      retryCountRef.current = 0; // Reset retry count on catch
       toast({
         title: "Speech Recognition Failed",
         description: "Unable to start voice input. You can type instead.",
@@ -227,13 +245,32 @@ export function useMVPVoice() {
       });
       setShowTextInput(true);
     }
-  }, [transcript, voiceLogMutation, toast, speechSupported]);
+  }, [transcript, voiceLogMutation, toast, isListening]);
+
+  const startListening = useCallback(() => {
+    // Check if speech recognition is supported
+    if (!speechSupported) {
+      toast({
+        title: "Speech Recognition Not Available",
+        description: "Your browser doesn't support speech recognition. You can type instead.",
+        variant: "destructive",
+      });
+      setShowTextInput(true);
+      return;
+    }
+
+    // Reset retry count when starting fresh
+    retryCountRef.current = 0;
+    startSpeechRecognition();
+  }, [speechSupported, startSpeechRecognition, toast]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
     setIsListening(false);
+    // Reset retry count when manually stopping
+    retryCountRef.current = 0;
   }, []);
 
   const handleTextSubmit = useCallback((text: string) => {
