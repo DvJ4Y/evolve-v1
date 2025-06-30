@@ -12,6 +12,9 @@ export interface IMVPStorage {
   // MVP Activity operations
   createMvpActivityLog(activity: InsertMvpActivityLog): Promise<MvpActivityLog>;
   getMvpActivityLogs(userId: number, limit?: number): Promise<MvpActivityLog[]>;
+  
+  // Health check
+  healthCheck(): Promise<{ status: 'healthy' | 'degraded', details: string }>;
 }
 
 // Database storage implementation with memory fallback
@@ -26,15 +29,30 @@ export class MVPDatabaseStorage implements IMVPStorage {
     const db = getDatabase();
     
     if (!db) {
-      console.log(`Database not available for ${operationName}, using memory storage`);
+      console.log(`🔄 Database not available for ${operationName}, using memory storage`);
       return fallbackOperation();
     }
 
     try {
-      return await operation();
+      const result = await operation();
+      return result;
     } catch (error) {
-      console.error(`Database error in ${operationName}, falling back to memory:`, error);
+      console.error(`❌ Database error in ${operationName}, falling back to memory:`, error);
       return fallbackOperation();
+    }
+  }
+
+  async healthCheck(): Promise<{ status: 'healthy' | 'degraded', details: string }> {
+    const db = getDatabase();
+    if (!db) {
+      return { status: 'degraded', details: 'Database not available, using memory storage' };
+    }
+
+    try {
+      await db.select().from(users).limit(1);
+      return { status: 'healthy', details: 'Database connection working' };
+    } catch (error) {
+      return { status: 'degraded', details: `Database error: ${error.message}` };
     }
   }
 
@@ -116,7 +134,7 @@ export class MVPDatabaseStorage implements IMVPStorage {
   }
 }
 
-// Memory storage implementation (fallback)
+// Enhanced memory storage implementation (fallback)
 export class MVPMemStorage implements IMVPStorage {
   private users: Map<number, User>;
   private mvpActivityLogs: Map<number, MvpActivityLog>;
@@ -129,25 +147,80 @@ export class MVPMemStorage implements IMVPStorage {
     this.currentUserId = 1;
     this.currentActivityId = 1;
 
-    // Create a demo user for MVP
-    this.createDemoUser();
+    // Create demo users for MVP
+    this.createDemoData();
   }
 
-  private async createDemoUser() {
+  private async createDemoData() {
+    // Create primary demo user
     const demoUser: InsertUser = {
-      name: "Alex",
+      name: "Alex Johnson",
       email: "alex@evolveai.com",
       avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150",
       age: 28,
-      primaryWellnessGoal: "Stay healthy and reduce stress through regular exercise and meditation",
+      primaryWellnessGoal: "I want to stay healthy and reduce stress through regular exercise and meditation",
       goals: {
-        body: ["Run 3 times a week", "Maintain healthy weight"],
-        mind: ["Meditate daily", "Reduce stress"],
+        body: ["Exercise 3 times a week", "Maintain healthy weight"],
+        mind: ["Meditate daily", "Reduce work stress"],
         soul: ["Practice gratitude", "Connect with nature"]
       }
     };
 
-    await this.createUser(demoUser);
+    const user = await this.createUser(demoUser);
+    
+    // Create some sample activities for demo
+    const sampleActivities = [
+      {
+        userId: user.id,
+        rawTextInput: "I did a 30 minute HIIT workout this morning",
+        detectedIntent: "workout" as const,
+        extractedKeywords: {
+          keywords: ["HIIT", "workout", "morning"],
+          duration: "30 minutes",
+          intensity: "high"
+        }
+      },
+      {
+        userId: user.id,
+        rawTextInput: "Had a healthy chicken salad for lunch",
+        detectedIntent: "food_intake" as const,
+        extractedKeywords: {
+          keywords: ["chicken", "salad", "lunch"],
+          quantity: "1 serving"
+        }
+      },
+      {
+        userId: user.id,
+        rawTextInput: "Took my daily vitamin D supplement",
+        detectedIntent: "supplement_intake" as const,
+        extractedKeywords: {
+          keywords: ["vitamin", "D", "supplement"],
+          quantity: "1 capsule"
+        }
+      },
+      {
+        userId: user.id,
+        rawTextInput: "Meditated for 15 minutes before work",
+        detectedIntent: "meditation" as const,
+        extractedKeywords: {
+          keywords: ["meditated", "work", "morning"],
+          duration: "15 minutes"
+        }
+      }
+    ];
+
+    for (const activity of sampleActivities) {
+      await this.createMvpActivityLog(activity);
+    }
+
+    console.log("✅ Demo data created successfully");
+  }
+
+  async healthCheck(): Promise<{ status: 'healthy' | 'degraded', details: string }> {
+    return { 
+      status: 'degraded', 
+      details: `Memory storage active with ${this.users.size} users and ${this.mvpActivityLogs.size} activities` 
+    };
   }
 
   async getUser(id: number): Promise<User | undefined> {

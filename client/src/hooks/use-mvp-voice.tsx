@@ -12,9 +12,24 @@ interface MVPVoiceLogResponse {
   confidence: number;
 }
 
-// Check if speech recognition is supported
+// Enhanced speech recognition support detection
 const checkSpeechSupport = (): boolean => {
-  return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  const hasWebkitSpeech = 'webkitSpeechRecognition' in window;
+  const hasSpeech = 'SpeechRecognition' in window;
+  const isSecureContext = window.isSecureContext || window.location.protocol === 'https:';
+  
+  return (hasWebkitSpeech || hasSpeech) && isSecureContext;
+};
+
+// Get browser-specific speech recognition class
+const getSpeechRecognition = () => {
+  if ('webkitSpeechRecognition' in window) {
+    return window.webkitSpeechRecognition;
+  }
+  if ('SpeechRecognition' in window) {
+    return window.SpeechRecognition;
+  }
+  return null;
 };
 
 export function useMVPVoice() {
@@ -22,6 +37,7 @@ export function useMVPVoice() {
   const [transcript, setTranscript] = useState("");
   const [showTextInput, setShowTextInput] = useState(false);
   const [textInput, setTextInput] = useState("");
+  const [speechSupported] = useState(checkSpeechSupport());
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -31,24 +47,35 @@ export function useMVPVoice() {
       // Get user from localStorage for MVP
       const savedUser = localStorage.getItem('evolve_user');
       if (!savedUser) {
-        throw new Error("User not found");
+        throw new Error("User not found - please sign in again");
       }
+      
       const user = JSON.parse(savedUser);
+      if (!user.id) {
+        throw new Error("Invalid user data - please sign in again");
+      }
 
       const response = await apiRequest("POST", "/api/mvp/voice/log", {
         userId: user.id,
-        voiceText: inputText
+        voiceText: inputText.trim()
       });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Server error: ${response.status} - ${errorData}`);
+      }
+      
       return response.json();
     },
     onSuccess: (data) => {
       if (data.success) {
+        const confidenceEmoji = data.confidence > 0.8 ? "🎯" : data.confidence > 0.6 ? "✅" : "👍";
         toast({
-          title: "Activity Logged! 🎉",
+          title: `Activity Logged! ${confidenceEmoji}`,
           description: data.message,
         });
         
-        // Get user from localStorage to invalidate correct queries
+        // Invalidate queries to refresh data
         const savedUser = localStorage.getItem('evolve_user');
         if (savedUser) {
           const user = JSON.parse(savedUser);
@@ -58,16 +85,24 @@ export function useMVPVoice() {
       } else {
         toast({
           title: "Logging Failed",
-          description: data.message,
+          description: data.message || "Could not log your activity",
           variant: "destructive",
         });
       }
     },
     onError: (error) => {
       console.error("Voice processing error:", error);
+      
+      let errorMessage = "Failed to process your input. Please try again.";
+      if (error.message.includes("User not found")) {
+        errorMessage = "Please sign in again to log activities.";
+      } else if (error.message.includes("Server error")) {
+        errorMessage = "Server is temporarily unavailable. Please try again.";
+      }
+      
       toast({
         title: "Voice Processing Error",
-        description: "Failed to process your input. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -75,9 +110,9 @@ export function useMVPVoice() {
 
   const startListening = useCallback(() => {
     // Check if speech recognition is supported
-    if (!checkSpeechSupport()) {
+    if (!speechSupported) {
       toast({
-        title: "Speech Recognition Not Supported",
+        title: "Speech Recognition Not Available",
         description: "Your browser doesn't support speech recognition. You can type instead.",
         variant: "destructive",
       });
@@ -85,73 +120,115 @@ export function useMVPVoice() {
       return;
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    const SpeechRecognition = getSpeechRecognition();
+    if (!SpeechRecognition) {
+      setShowTextInput(true);
+      return;
+    }
 
-    recognition.onstart = () => {
-      setIsListening(true);
-      setTranscript("");
-      setShowTextInput(false);
-    };
+    try {
+      const recognition = new SpeechRecognition();
+      
+      // Configure recognition settings
+      recognition.continuous = false; // Changed to false for better reliability
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+      recognition.maxAlternatives = 1;
 
-    recognition.onresult = (event) => {
-      let finalTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
+      recognition.onstart = () => {
+        console.log("🎤 Speech recognition started");
+        setIsListening(true);
+        setTranscript("");
+        setShowTextInput(false);
+      };
+
+      recognition.onresult = (event) => {
+        let finalTranscript = "";
+        let interimTranscript = "";
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript;
+          } else {
+            interimTranscript += transcript;
+          }
         }
-      }
-      if (finalTranscript) {
-        setTranscript(finalTranscript);
-      }
-    };
+        
+        if (finalTranscript) {
+          console.log("🎯 Final transcript:", finalTranscript);
+          setTranscript(finalTranscript);
+        }
+      };
 
-    recognition.onend = () => {
-      setIsListening(false);
-      if (transcript.trim()) {
-        voiceLogMutation.mutate(transcript);
-      }
-    };
+      recognition.onend = () => {
+        console.log("🔇 Speech recognition ended");
+        setIsListening(false);
+        
+        if (transcript.trim()) {
+          console.log("📝 Processing transcript:", transcript);
+          voiceLogMutation.mutate(transcript);
+        } else {
+          toast({
+            title: "No Speech Detected",
+            description: "Please try speaking again or use text input.",
+            variant: "destructive",
+          });
+          setShowTextInput(true);
+        }
+      };
 
-    recognition.onerror = (event) => {
-      setIsListening(false);
-      let errorMessage = "Speech recognition error occurred.";
-      
-      switch(event.error) {
-        case 'no-speech':
-          errorMessage = "No speech detected. Please try again or use text input.";
+      recognition.onerror = (event) => {
+        console.error("🚨 Speech recognition error:", event.error);
+        setIsListening(false);
+        
+        let errorMessage = "Speech recognition error occurred.";
+        let shouldShowTextInput = true;
+        
+        switch(event.error) {
+          case 'no-speech':
+            errorMessage = "No speech detected. Please try again or use text input.";
+            break;
+          case 'audio-capture':
+            errorMessage = "Microphone not accessible. Please check permissions or use text input.";
+            break;
+          case 'not-allowed':
+            errorMessage = "Microphone permission denied. You can type instead.";
+            break;
+          case 'network':
+            errorMessage = "Network error. Please check your connection.";
+            shouldShowTextInput = false;
+            break;
+          case 'service-not-allowed':
+            errorMessage = "Speech service not allowed. You can type instead.";
+            break;
+          default:
+            errorMessage = "Speech recognition failed. You can type instead.";
+        }
+        
+        toast({
+          title: "Voice Input Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        
+        if (shouldShowTextInput) {
           setShowTextInput(true);
-          break;
-        case 'audio-capture':
-          errorMessage = "Microphone not accessible. Please check permissions or use text input.";
-          setShowTextInput(true);
-          break;
-        case 'not-allowed':
-          errorMessage = "Microphone permission denied. You can type instead.";
-          setShowTextInput(true);
-          break;
-        case 'network':
-          errorMessage = "Network error. Please check your connection.";
-          break;
-        default:
-          errorMessage = "Speech recognition failed. You can type instead.";
-          setShowTextInput(true);
-      }
-      
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (error) {
+      console.error("Failed to start speech recognition:", error);
       toast({
-        title: "Voice Input Error",
-        description: errorMessage,
+        title: "Speech Recognition Failed",
+        description: "Unable to start voice input. You can type instead.",
         variant: "destructive",
       });
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-  }, [transcript, voiceLogMutation, toast]);
+      setShowTextInput(true);
+    }
+  }, [transcript, voiceLogMutation, toast, speechSupported]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
@@ -161,17 +238,29 @@ export function useMVPVoice() {
   }, []);
 
   const handleTextSubmit = useCallback((text: string) => {
-    if (text.trim()) {
-      voiceLogMutation.mutate(text.trim());
+    const trimmedText = text.trim();
+    if (trimmedText) {
+      console.log("📝 Processing text input:", trimmedText);
+      voiceLogMutation.mutate(trimmedText);
       setTextInput("");
       setShowTextInput(false);
+    } else {
+      toast({
+        title: "Empty Input",
+        description: "Please enter some text about your activity.",
+        variant: "destructive",
+      });
     }
-  }, [voiceLogMutation]);
+  }, [voiceLogMutation, toast]);
 
   const toggleTextInput = useCallback(() => {
     setShowTextInput(!showTextInput);
     if (isListening) {
       stopListening();
+    }
+    // Clear any existing text when toggling
+    if (!showTextInput) {
+      setTextInput("");
     }
   }, [showTextInput, isListening, stopListening]);
 
@@ -186,6 +275,6 @@ export function useMVPVoice() {
     handleTextSubmit,
     toggleTextInput,
     isProcessing: voiceLogMutation.isPending,
-    speechSupported: checkSpeechSupport(),
+    speechSupported,
   };
 }

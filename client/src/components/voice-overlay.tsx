@@ -1,4 +1,4 @@
-import { Mic, X, Type, Send } from "lucide-react";
+import { Mic, X, Type, Send, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,7 @@ export default function VoiceOverlay({
 
   const handleTextKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && textInput.trim() && onTextSubmit) {
+      e.preventDefault();
       onTextSubmit(textInput);
     }
   };
@@ -65,19 +66,26 @@ export default function VoiceOverlay({
                   placeholder="e.g., I did a 30 minute workout"
                   className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
                   autoFocus
+                  maxLength={500}
                 />
                 <Button
                   onClick={handleTextSubmitClick}
                   disabled={!textInput.trim()}
-                  className="bg-green-500 text-white hover:bg-green-600 px-3"
+                  className="bg-green-500 text-white hover:bg-green-600 px-3 disabled:opacity-50"
                 >
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
               
-              <p className="text-xs text-white/60">
-                Examples: "I meditated for 15 minutes", "Had a protein shake", "Did yoga"
-              </p>
+              <div className="text-xs text-white/60 space-y-1">
+                <p>Examples:</p>
+                <div className="space-y-1">
+                  <p>"I meditated for 15 minutes"</p>
+                  <p>"Had a protein shake after workout"</p>
+                  <p>"Did 30 minutes of yoga"</p>
+                  <p>"Took my vitamin D supplement"</p>
+                </div>
+              </div>
             </div>
             
             <div className="flex space-x-3 mt-6">
@@ -117,10 +125,23 @@ export default function VoiceOverlay({
             </p>
             
             {!speechSupported && (
-              <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+              <div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-yellow-200" />
                 <p className="text-sm text-yellow-200">
                   Speech recognition not supported in your browser
                 </p>
+              </div>
+            )}
+            
+            {speechSupported && (
+              <div className="mb-6 text-xs text-white/60 space-y-1">
+                <p>Try saying:</p>
+                <div className="space-y-1">
+                  <p>"I did a 30 minute HIIT workout"</p>
+                  <p>"Had a healthy lunch with salad"</p>
+                  <p>"Meditated for 10 minutes"</p>
+                  <p>"Took my daily vitamins"</p>
+                </div>
               </div>
             )}
             
