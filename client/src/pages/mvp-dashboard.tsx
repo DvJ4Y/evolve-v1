@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Mic, Activity, User, TrendingUp, Calendar } from "lucide-react";
+import { Mic, Activity, User, TrendingUp, Calendar, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -124,6 +124,12 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
     setIsVoiceActive(false);
   };
 
+  const handleQuickSelect = (phrase: string) => {
+    setTextInput(phrase);
+    handleTextSubmit(phrase);
+    setIsVoiceActive(false);
+  };
+
   // Get current time greeting
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
@@ -159,6 +165,9 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
   if (error) {
     return <ErrorDisplay onRetry={() => refetch()} />;
   }
+
+  // Get the most recent activity for chat context
+  const lastLoggedActivity = activities && activities.length > 0 ? activities[0] : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[hsl(225,15%,6%)] to-[hsl(225,15%,4%)] relative">
@@ -236,14 +245,17 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
           
           {user.primaryWellnessGoal && (
             <div className="pt-4 border-t border-white/10">
-              <div className="text-sm text-white/60 mb-2">Your Goal</div>
+              <div className="text-sm text-white/60 mb-2 flex items-center">
+                <MessageCircle className="w-3 h-3 mr-1" />
+                Your Goal
+              </div>
               <p className="text-sm text-white/90 leading-relaxed">{user.primaryWellnessGoal}</p>
             </div>
           )}
         </GlassmorphicCard>
       </div>
 
-      {/* Recent Activities */}
+      {/* Recent Activities with Chat-like Interface */}
       <div className="px-6 mb-40">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold flex items-center">
@@ -264,8 +276,8 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
         ) : (
           <div className="space-y-4">
             {activities && activities.length > 0 ? (
-              activities.slice(0, 10).map((activity) => (
-                <GlassmorphicCard key={activity.id} className="p-4 hover:bg-white/5 transition-colors">
+              activities.slice(0, 10).map((activity, index) => (
+                <GlassmorphicCard key={activity.id} className="p-4 hover:bg-white/5 transition-colors chat-message" style={{ animationDelay: `${index * 0.1}s` }}>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
@@ -286,11 +298,14 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-white/90 mb-2 leading-relaxed">
-                        "{activity.rawTextInput}"
-                      </p>
+                      <div className="flex items-start space-x-2 mb-2">
+                        <MessageCircle className="w-4 h-4 text-white/50 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-white/90 leading-relaxed">
+                          "{activity.rawTextInput}"
+                        </p>
+                      </div>
                       {activity.extractedKeywords?.keywords && activity.extractedKeywords.keywords.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1 ml-6">
                           {activity.extractedKeywords.keywords.slice(0, 4).map((keyword, index) => (
                             <span 
                               key={index}
@@ -318,7 +333,10 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
                   Use the voice button below to log your first wellness activity
                 </p>
                 <div className="space-y-2 text-xs text-white/50">
-                  <p className="font-medium">Try saying:</p>
+                  <p className="font-medium flex items-center justify-center">
+                    <MessageCircle className="w-3 h-3 mr-1" />
+                    Try saying:
+                  </p>
                   <div className="space-y-1">
                     <p>"I did a 30 minute workout"</p>
                     <p>"I meditated for 10 minutes"</p>
@@ -393,7 +411,7 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
         </div>
       </div>
 
-      {/* Enhanced Voice Overlay */}
+      {/* Enhanced Voice Overlay with Chat Interface */}
       <VoiceOverlay 
         isVisible={isVoiceActive}
         onStop={handleVoiceStop}
@@ -404,6 +422,8 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
         onTextSubmit={handleOverlayTextSubmit}
         onToggleTextInput={toggleTextInput}
         speechSupported={speechSupported}
+        lastLoggedActivity={lastLoggedActivity}
+        onQuickSelect={handleQuickSelect}
       />
     </div>
   );

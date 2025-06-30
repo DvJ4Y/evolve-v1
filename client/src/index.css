@@ -156,11 +156,163 @@
   .bg-pillar-soul {
     background-color: hsl(var(--soul-color));
   }
+
+  /* Chat-like interface styles */
+  .chat-bubble {
+    animation: chat-bubble-appear 0.3s ease-out;
+  }
+
+  .chat-history {
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+
+  .chat-history::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .chat-history::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .chat-history::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+  }
+
+  .quick-select-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .quick-select-button {
+    @apply glassmorphic;
+    padding: 0.75rem;
+    border-radius: 1rem;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+  }
+
+  .quick-select-button:hover {
+    background: hsla(0, 0%, 100%, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+  }
+
+  .quick-select-button:active {
+    transform: translateY(0);
+  }
+
+  /* Sci-fi moving background animations */
+  .sci-fi-bg {
+    position: absolute;
+    inset: 0;
+    opacity: 0.05;
+    overflow: hidden;
+  }
+
+  .floating-orb {
+    position: absolute;
+    border-radius: 50%;
+    mix-blend-mode: multiply;
+    filter: blur(40px);
+    animation: float-complex 8s ease-in-out infinite;
+  }
+
+  .floating-orb:nth-child(1) {
+    width: 300px;
+    height: 300px;
+    background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+    top: -10%;
+    left: -10%;
+    animation-delay: 0s;
+  }
+
+  .floating-orb:nth-child(2) {
+    width: 250px;
+    height: 250px;
+    background: linear-gradient(45deg, #f59e0b, #ec4899);
+    top: -5%;
+    right: -10%;
+    animation-delay: 2s;
+  }
+
+  .floating-orb:nth-child(3) {
+    width: 200px;
+    height: 200px;
+    background: linear-gradient(45deg, #10b981, #3b82f6);
+    bottom: 30%;
+    left: 50%;
+    animation-delay: 4s;
+  }
+
+  .floating-orb:nth-child(4) {
+    width: 180px;
+    height: 180px;
+    background: linear-gradient(45deg, #8b5cf6, #ec4899);
+    bottom: -10%;
+    right: 20%;
+    animation-delay: 6s;
+  }
+
+  /* Particle effect for sci-fi vibe */
+  .particle {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    animation: particle-float 12s linear infinite;
+  }
+
+  .particle:nth-child(odd) {
+    animation-delay: -6s;
+  }
+
+  /* Enhanced chat interface styles */
+  .chat-message {
+    animation: slide-in-up 0.4s ease-out;
+  }
+
+  .chat-input-container {
+    background: hsla(0, 0%, 100%, 0.08);
+    backdrop-filter: blur(20px);
+    border: 1px solid hsla(0, 0%, 100%, 0.12);
+    border-radius: 1.5rem;
+    transition: all 0.3s ease;
+  }
+
+  .chat-input-container:focus-within {
+    background: hsla(0, 0%, 100%, 0.12);
+    border-color: hsla(33, 100%, 75%, 0.5);
+    box-shadow: 0 0 20px hsla(33, 100%, 75%, 0.2);
+  }
+
+  .quick-action-pulse {
+    animation: quick-action-pulse 2s ease-in-out infinite;
+  }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-float-delayed {
+    animation: float 6s ease-in-out infinite;
+    animation-delay: 3s;
+  }
+
+  .animate-float-complex {
+    animation: float-complex 8s ease-in-out infinite;
   }
 }
 
@@ -198,6 +350,81 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-10px) rotate(1deg);
+  }
+  66% {
+    transform: translateY(5px) rotate(-1deg);
+  }
+}
+
+@keyframes float-complex {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px) rotate(2deg) scale(1.05);
+  }
+  50% {
+    transform: translateY(-10px) translateX(-15px) rotate(-1deg) scale(0.95);
+  }
+  75% {
+    transform: translateY(15px) translateX(5px) rotate(1.5deg) scale(1.02);
+  }
+}
+
+@keyframes chat-bubble-appear {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes particle-float {
+  0% {
+    transform: translateY(100vh) translateX(0px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100px) translateX(50px);
+    opacity: 0;
+  }
+}
+
+@keyframes quick-action-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(251, 191, 36, 0);
   }
 }
 
