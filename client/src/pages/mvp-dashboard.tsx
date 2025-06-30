@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Mic, Activity, User, TrendingUp, Calendar, MessageCircle } from "lucide-react";
+import { MessageCircle, Activity, User, TrendingUp, Calendar, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import VoiceButton from "@/components/voice-button";
 import GlassmorphicCard from "@/components/glassmorphic";
 import VoiceOverlay from "@/components/voice-overlay";
 import { useMVPVoice } from "@/hooks/use-mvp-voice";
@@ -79,17 +78,11 @@ const ErrorDisplay = ({ onRetry }: { onRetry: () => void }) => (
 );
 
 export default function MVPDashboard({ user }: MVPDashboardProps) {
-  const [isVoiceActive, setIsVoiceActive] = useState(false);
+  const [isInputActive, setIsInputActive] = useState(false);
   const { 
-    isListening, 
-    startListening, 
-    stopListening,
-    showTextInput,
     textInput,
     setTextInput,
     handleTextSubmit,
-    toggleTextInput,
-    speechSupported,
     isProcessing
   } = useMVPVoice();
 
@@ -107,27 +100,23 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
     refetchOnWindowFocus: false,
   });
 
-  const handleVoiceActivate = () => {
-    setIsVoiceActive(true);
-    if (speechSupported) {
-      startListening();
-    }
+  const handleInputActivate = () => {
+    setIsInputActive(true);
   };
 
-  const handleVoiceStop = () => {
-    setIsVoiceActive(false);
-    stopListening();
+  const handleInputStop = () => {
+    setIsInputActive(false);
   };
 
   const handleOverlayTextSubmit = (text: string) => {
     handleTextSubmit(text);
-    setIsVoiceActive(false);
+    setIsInputActive(false);
   };
 
   const handleQuickSelect = (phrase: string) => {
     setTextInput(phrase);
     handleTextSubmit(phrase);
-    setIsVoiceActive(false);
+    setIsInputActive(false);
   };
 
   // Get current time greeting
@@ -330,12 +319,12 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
                 <div className="text-4xl mb-4">🎯</div>
                 <h3 className="font-semibold mb-2">Start Your Journey</h3>
                 <p className="text-white/70 text-sm mb-6">
-                  Use the voice button below to log your first wellness activity
+                  Use the chat button below to log your first wellness activity
                 </p>
                 <div className="space-y-2 text-xs text-white/50">
                   <p className="font-medium flex items-center justify-center">
                     <MessageCircle className="w-3 h-3 mr-1" />
-                    Try saying:
+                    Try typing:
                   </p>
                   <div className="space-y-1">
                     <p>"I did a 30 minute workout"</p>
@@ -350,23 +339,28 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
         )}
       </div>
 
-      {/* Enhanced Floating Voice Button */}
+      {/* Enhanced Floating Chat Button */}
       <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-30">
         <div className="relative">
           {/* 3D Shadow Effect */}
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-400/30 to-orange-500/30 rounded-full blur-xl scale-110 animate-pulse"></div>
-          <div className="absolute inset-0 bg-gradient-to-br from-amber-400/20 to-orange-500/20 rounded-full blur-2xl scale-125"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/30 to-purple-500/30 rounded-full blur-xl scale-110 animate-pulse"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-purple-500/20 rounded-full blur-2xl scale-125"></div>
           
-          {/* Main Voice Button */}
+          {/* Main Chat Button */}
           <div className="relative">
-            <VoiceButton 
-              onClick={handleVoiceActivate}
-              isListening={isListening || isProcessing}
-              className="shadow-2xl transform hover:scale-110 transition-all duration-300 border-4 border-white/20"
-              size="lg"
-            />
+            <Button
+              onClick={handleInputActivate}
+              disabled={isProcessing}
+              className="w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all duration-300 border-4 border-white/20 disabled:opacity-50"
+            >
+              {isProcessing ? (
+                <div className="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <MessageCircle className="w-8 h-8 text-white" />
+              )}
+            </Button>
             {isProcessing && (
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                 <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
               </div>
             )}
@@ -390,12 +384,12 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
               <Button 
                 variant="ghost" 
                 className="flex flex-col items-center space-y-1 py-3 px-4 rounded-2xl hover:bg-white/10 transition-all duration-300"
-                onClick={handleVoiceActivate}
+                onClick={handleInputActivate}
                 disabled={isProcessing}
               >
-                <Mic className={`w-6 h-6 ${isProcessing ? 'text-blue-400' : 'text-white/70'}`} />
+                <MessageCircle className={`w-6 h-6 ${isProcessing ? 'text-blue-400' : 'text-white/70'}`} />
                 <span className="text-xs text-white/70 font-medium">
-                  {isProcessing ? "Processing..." : "Voice Log"}
+                  {isProcessing ? "Processing..." : "Log Activity"}
                 </span>
               </Button>
               
@@ -411,19 +405,16 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
         </div>
       </div>
 
-      {/* Enhanced Voice Overlay with Chat Interface */}
+      {/* Enhanced Chat Overlay */}
       <VoiceOverlay 
-        isVisible={isVoiceActive}
-        onStop={handleVoiceStop}
-        isListening={isListening}
-        showTextInput={showTextInput}
+        isVisible={isInputActive}
+        onStop={handleInputStop}
         textInput={textInput}
         onTextInputChange={setTextInput}
         onTextSubmit={handleOverlayTextSubmit}
-        onToggleTextInput={toggleTextInput}
-        speechSupported={speechSupported}
         lastLoggedActivity={lastLoggedActivity}
         onQuickSelect={handleQuickSelect}
+        isProcessing={isProcessing}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -12,36 +12,9 @@ interface MVPVoiceLogResponse {
   confidence: number;
 }
 
-// Enhanced speech recognition support detection
-const checkSpeechSupport = (): boolean => {
-  const hasWebkitSpeech = 'webkitSpeechRecognition' in window;
-  const hasSpeech = 'SpeechRecognition' in window;
-  const isSecureContext = window.isSecureContext || window.location.protocol === 'https:';
-  
-  return (hasWebkitSpeech || hasSpeech) && isSecureContext;
-};
-
-// Get browser-specific speech recognition class
-const getSpeechRecognition = () => {
-  if ('webkitSpeechRecognition' in window) {
-    return window.webkitSpeechRecognition;
-  }
-  if ('SpeechRecognition' in window) {
-    return window.SpeechRecognition;
-  }
-  return null;
-};
-
 export function useMVPVoice() {
-  const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [showTextInput, setShowTextInput] = useState(false);
   const [textInput, setTextInput] = useState("");
-  const [speechSupported] = useState(checkSpeechSupport());
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const retryCountRef = useRef(0);
-  const maxRetries = 2;
-  const retryDelay = 1000; // 1 second delay between retries
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -94,7 +67,7 @@ export function useMVPVoice() {
       }
     },
     onError: (error) => {
-      console.error("Voice processing error:", error);
+      console.error("Text processing error:", error);
       
       let errorMessage = "Failed to process your input. Please try again.";
       if (error.message.includes("User not found")) {
@@ -104,213 +77,57 @@ export function useMVPVoice() {
       }
       
       toast({
-        title: "Voice Processing Error",
+        title: "Processing Error",
         description: errorMessage,
         variant: "destructive",
       });
     },
   });
 
-  const startSpeechRecognition = useCallback(() => {
-    const SpeechRecognition = getSpeechRecognition();
-    if (!SpeechRecognition) {
-      setShowTextInput(true);
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      
-      // Configure recognition settings
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-      recognition.maxAlternatives = 1;
-
-      recognition.onstart = () => {
-        console.log("🎤 Speech recognition started");
-        setIsListening(true);
-        setTranscript("");
-        setShowTextInput(false);
-      };
-
-      recognition.onresult = (event) => {
-        let finalTranscript = "";
-        let interimTranscript = "";
-        
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-        
-        if (finalTranscript) {
-          console.log("🎯 Final transcript:", finalTranscript);
-          setTranscript(finalTranscript);
-        }
-      };
-
-      recognition.onend = () => {
-        console.log("🔇 Speech recognition ended");
-        setIsListening(false);
-        
-        if (transcript.trim()) {
-          console.log("📝 Processing transcript:", transcript);
-          voiceLogMutation.mutate(transcript);
-          // Reset retry count on successful completion
-          retryCountRef.current = 0;
-        } else {
-          toast({
-            title: "No Speech Detected",
-            description: "Please try speaking again or use text input.",
-            variant: "destructive",
-          });
-          setShowTextInput(true);
-        }
-      };
-
-      recognition.onerror = (event) => {
-        console.error("🚨 Speech recognition error:", event.error);
-        setIsListening(false);
-        
-        // Handle network errors with retry mechanism
-        if (event.error === 'network' && retryCountRef.current < maxRetries) {
-          retryCountRef.current += 1;
-          console.log(`🔄 Retrying speech recognition (attempt ${retryCountRef.current}/${maxRetries})`);
-          
-          toast({
-            title: "Network Issue Detected",
-            description: `Retrying voice input (${retryCountRef.current}/${maxRetries})...`,
-          });
-          
-          // Retry after a short delay
-          setTimeout(() => {
-            if (!isListening) { // Only retry if not already listening
-              startSpeechRecognition();
-            }
-          }, retryDelay);
-          
-          return; // Don't show error message or text input yet
-        }
-        
-        // Reset retry count for non-network errors or after max retries
-        retryCountRef.current = 0;
-        
-        let errorMessage = "Speech recognition error occurred.";
-        let shouldShowTextInput = true;
-        
-        switch(event.error) {
-          case 'no-speech':
-            errorMessage = "No speech detected. Please try again or use text input.";
-            break;
-          case 'audio-capture':
-            errorMessage = "Microphone not accessible. Please check permissions or use text input.";
-            break;
-          case 'not-allowed':
-            errorMessage = "Microphone permission denied. You can type instead.";
-            break;
-          case 'network':
-            errorMessage = "Network connection failed after retries. You can type instead.";
-            break;
-          case 'service-not-allowed':
-            errorMessage = "Speech service not allowed. You can type instead.";
-            break;
-          default:
-            errorMessage = "Speech recognition failed. You can type instead.";
-        }
-        
-        toast({
-          title: "Voice Input Error",
-          description: errorMessage,
-          variant: "destructive",
-        });
-        
-        if (shouldShowTextInput) {
-          setShowTextInput(true);
-        }
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (error) {
-      console.error("Failed to start speech recognition:", error);
-      retryCountRef.current = 0; // Reset retry count on catch
-      toast({
-        title: "Speech Recognition Failed",
-        description: "Unable to start voice input. You can type instead.",
-        variant: "destructive",
-      });
-      setShowTextInput(true);
-    }
-  }, [transcript, voiceLogMutation, toast, isListening]);
-
-  const startListening = useCallback(() => {
-    // Check if speech recognition is supported
-    if (!speechSupported) {
-      toast({
-        title: "Speech Recognition Not Available",
-        description: "Your browser doesn't support speech recognition. You can type instead.",
-        variant: "destructive",
-      });
-      setShowTextInput(true);
-      return;
-    }
-
-    // Reset retry count when starting fresh
-    retryCountRef.current = 0;
-    startSpeechRecognition();
-  }, [speechSupported, startSpeechRecognition, toast]);
-
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-    setIsListening(false);
-    // Reset retry count when manually stopping
-    retryCountRef.current = 0;
-  }, []);
-
-  const handleTextSubmit = useCallback((text: string) => {
+  const handleTextSubmit = useCallback(async (text: string) => {
     const trimmedText = text.trim();
-    if (trimmedText) {
-      console.log("📝 Processing text input:", trimmedText);
-      voiceLogMutation.mutate(trimmedText);
-      setTextInput("");
-      setShowTextInput(false);
-    } else {
+    if (!trimmedText) {
       toast({
         title: "Empty Input",
         description: "Please enter some text about your activity.",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (trimmedText.length > 500) {
+      toast({
+        title: "Input Too Long",
+        description: "Please keep your activity description under 500 characters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      console.log("📝 Processing text input:", trimmedText);
+      await voiceLogMutation.mutateAsync(trimmedText);
+      setTextInput("");
+    } catch (error) {
+      // Error handling is done in mutation onError
+    } finally {
+      setIsProcessing(false);
     }
   }, [voiceLogMutation, toast]);
 
-  const toggleTextInput = useCallback(() => {
-    setShowTextInput(!showTextInput);
-    if (isListening) {
-      stopListening();
-    }
-    // Clear any existing text when toggling
-    if (!showTextInput) {
-      setTextInput("");
-    }
-  }, [showTextInput, isListening, stopListening]);
-
   return {
-    isListening,
-    transcript,
-    showTextInput,
     textInput,
     setTextInput,
-    startListening,
-    stopListening,
     handleTextSubmit,
-    toggleTextInput,
-    isProcessing: voiceLogMutation.isPending,
-    speechSupported,
+    isProcessing: isProcessing || voiceLogMutation.isPending,
+    // Legacy compatibility - these are no longer used but kept for existing components
+    isListening: false,
+    transcript: "",
+    showTextInput: true,
+    startListening: () => {},
+    stopListening: () => {},
+    toggleTextInput: () => {},
+    speechSupported: false,
   };
 }
