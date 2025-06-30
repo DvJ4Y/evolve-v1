@@ -1,3 +1,6 @@
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+import { eq, desc } from "drizzle-orm";
 import { mvpActivityLogs, users, type User, type InsertUser, type MvpActivityLog, type InsertMvpActivityLog } from "@shared/schema";
 
 export interface IMVPStorage {
@@ -12,6 +15,102 @@ export interface IMVPStorage {
   getMvpActivityLogs(userId: number, limit?: number): Promise<MvpActivityLog[]>;
 }
 
+// Database storage implementation
+export class MVPDatabaseStorage implements IMVPStorage {
+  private db;
+
+  constructor() {
+    if (process.env.DATABASE_URL) {
+      const sql = neon(process.env.DATABASE_URL);
+      this.db = drizzle(sql);
+    } else {
+      console.warn("DATABASE_URL not configured - using memory storage");
+      this.db = null;
+    }
+  }
+
+  async getUser(id: number): Promise<User | undefined> {
+    if (!this.db) return this.memStorage.getUser(id);
+    
+    try {
+      const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Database error in getUser:", error);
+      return this.memStorage.getUser(id);
+    }
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    if (!this.db) return this.memStorage.getUserByEmail(email);
+    
+    try {
+      const result = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Database error in getUserByEmail:", error);
+      return this.memStorage.getUserByEmail(email);
+    }
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    if (!this.db) return this.memStorage.createUser(insertUser);
+    
+    try {
+      const result = await this.db.insert(users).values(insertUser).returning();
+      return result[0];
+    } catch (error) {
+      console.error("Database error in createUser:", error);
+      return this.memStorage.createUser(insertUser);
+    }
+  }
+
+  async updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined> {
+    if (!this.db) return this.memStorage.updateUser(id, updates);
+    
+    try {
+      const result = await this.db.update(users).set(updates).where(eq(users.id, id)).returning();
+      return result[0];
+    } catch (error) {
+      console.error("Database error in updateUser:", error);
+      return this.memStorage.updateUser(id, updates);
+    }
+  }
+
+  async createMvpActivityLog(activity: InsertMvpActivityLog): Promise<MvpActivityLog> {
+    if (!this.db) return this.memStorage.createMvpActivityLog(activity);
+    
+    try {
+      const result = await this.db.insert(mvpActivityLogs).values(activity).returning();
+      return result[0];
+    } catch (error) {
+      console.error("Database error in createMvpActivityLog:", error);
+      return this.memStorage.createMvpActivityLog(activity);
+    }
+  }
+
+  async getMvpActivityLogs(userId: number, limit = 50): Promise<MvpActivityLog[]> {
+    if (!this.db) return this.memStorage.getMvpActivityLogs(userId, limit);
+    
+    try {
+      const result = await this.db
+        .select()
+        .from(mvpActivityLogs)
+        .where(eq(mvpActivityLogs.userId, userId))
+        .orderBy(desc(mvpActivityLogs.timestamp))
+        .limit(limit);
+      return result;
+    } catch (error) {
+      console.error("Database error in getMvpActivityLogs:", error);
+      return this.memStorage.getMvpActivityLogs(userId, limit);
+    }
+  }
+
+  // Fallback memory storage for when database is not available
+  private memStorage = new MVPMemStorage();
+}
+
+// Memory storage implementation (fallback)
 export class MVPMemStorage implements IMVPStorage {
   private users: Map<number, User>;
   private mvpActivityLogs: Map<number, MvpActivityLog>;
@@ -113,4 +212,5 @@ export class MVPMemStorage implements IMVPStorage {
   }
 }
 
-export const mvpStorage = new MVPMemStorage();
+// Use database storage with memory fallback
+export const mvpStorage = new MVPDatabaseStorage();

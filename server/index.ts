@@ -44,12 +44,26 @@ app.use((req, res, next) => {
   // Register legacy routes for development
   await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  // Enhanced error handling middleware
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
+    // Log error details for debugging
+    console.error(`API Error [${status}] ${req.method} ${req.path}:`, {
+      message: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      body: req.body,
+      query: req.query
+    });
+
+    res.status(status).json({ 
+      message,
+      ...(process.env.NODE_ENV === 'development' && { 
+        stack: err.stack,
+        details: err.details 
+      })
+    });
   });
 
   // importantly only setup vite in development and after
@@ -71,5 +85,10 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Log configuration status
+    log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    log(`Database: ${process.env.DATABASE_URL ? 'Connected' : 'Memory fallback'}`);
+    log(`Gemini API: ${process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY ? 'Configured' : 'Fallback mode'}`);
   });
 })();

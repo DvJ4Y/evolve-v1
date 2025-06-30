@@ -30,26 +30,68 @@ interface MVPDashboardProps {
   user: User;
 }
 
+// Loading skeleton component
+const DashboardSkeleton = () => (
+  <div className="min-h-screen bg-gradient-to-b from-[hsl(225,15%,6%)] to-[hsl(225,15%,4%)] px-6">
+    <div className="pt-16 pb-8 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <Skeleton className="h-8 w-32 bg-white/10" />
+          <Skeleton className="h-4 w-20 bg-white/5 mt-2" />
+        </div>
+        <Skeleton className="w-14 h-14 rounded-full bg-white/10" />
+      </div>
+      <Skeleton className="h-32 w-full bg-white/5 rounded-3xl" />
+      <div className="space-y-4">
+        {[1,2,3].map(i => (
+          <Skeleton key={i} className="h-20 w-full bg-white/5 rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 export default function MVPDashboard({ user }: MVPDashboardProps) {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
-  const { isListening, startListening, stopListening } = useMVPVoice();
+  const { 
+    isListening, 
+    startListening, 
+    stopListening,
+    showTextInput,
+    textInput,
+    setTextInput,
+    handleTextSubmit,
+    toggleTextInput,
+    speechSupported
+  } = useMVPVoice();
 
-  const { data: dashboardData, isLoading } = useQuery<MVPDashboardData>({
+  const { data: dashboardData, isLoading, error } = useQuery<MVPDashboardData>({
     queryKey: [`/api/mvp/dashboard/${user.id}`],
+    retry: 1,
+    staleTime: 30000, // 30 seconds
   });
 
-  const { data: activities } = useQuery<MvpActivityLog[]>({
+  const { data: activities, isLoading: activitiesLoading } = useQuery<MvpActivityLog[]>({
     queryKey: [`/api/mvp/activities/${user.id}`],
+    retry: 1,
+    staleTime: 30000,
   });
 
   const handleVoiceActivate = () => {
     setIsVoiceActive(true);
-    startListening();
+    if (speechSupported) {
+      startListening();
+    }
   };
 
   const handleVoiceStop = () => {
     setIsVoiceActive(false);
     stopListening();
+  };
+
+  const handleOverlayTextSubmit = (text: string) => {
+    handleTextSubmit(text);
+    setIsVoiceActive(false);
   };
 
   // Get current time greeting
@@ -73,18 +115,19 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
   };
 
   if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[hsl(225,15%,6%)] to-[hsl(225,15%,4%)] px-6">
-        <div className="pt-16 pb-8">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <Skeleton className="h-7 w-32 mb-2 bg-white/10 rounded-2xl" />
-              <Skeleton className="h-4 w-20 bg-white/5 rounded-xl" />
-            </div>
-            <Skeleton className="w-12 h-12 rounded-full bg-white/10" />
-          </div>
-          <Skeleton className="h-40 w-full rounded-3xl bg-white/5" />
-        </div>
+      <div className="min-h-screen bg-gradient-to-b from-[hsl(225,15%,6%)] to-[hsl(225,15%,4%)] px-6 flex items-center justify-center">
+        <GlassmorphicCard className="p-8 text-center">
+          <h2 className="text-xl font-bold mb-4">Something went wrong</h2>
+          <p className="text-white/70 mb-4">We couldn't load your dashboard data.</p>
+          <Button onClick={() => window.location.reload()}>
+            Reload
+          </Button>
+        </GlassmorphicCard>
       </div>
     );
   }
@@ -160,60 +203,71 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
           <Activity className="w-5 h-5 text-white/50" />
         </div>
         
-        <div className="space-y-4">
-          {activities && activities.length > 0 ? (
-            activities.slice(0, 10).map((activity) => (
-              <GlassmorphicCard key={activity.id} className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Badge 
-                        variant="outline" 
-                        className={intentColors[activity.detectedIntent]}
-                      >
-                        {intentLabels[activity.detectedIntent]}
-                      </Badge>
-                      {activity.extractedKeywords?.duration && (
-                        <span className="text-xs text-white/70">
-                          {activity.extractedKeywords.duration}
-                        </span>
+        {activitiesLoading ? (
+          <div className="space-y-4">
+            {[1,2,3].map(i => (
+              <Skeleton key={i} className="h-20 w-full bg-white/5 rounded-2xl" />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {activities && activities.length > 0 ? (
+              activities.slice(0, 10).map((activity) => (
+                <GlassmorphicCard key={activity.id} className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Badge 
+                          variant="outline" 
+                          className={intentColors[activity.detectedIntent]}
+                        >
+                          {intentLabels[activity.detectedIntent]}
+                        </Badge>
+                        {activity.extractedKeywords?.duration && (
+                          <span className="text-xs text-white/70">
+                            {activity.extractedKeywords.duration}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-white/90 mb-2">
+                        "{activity.rawTextInput}"
+                      </p>
+                      {activity.extractedKeywords?.keywords && activity.extractedKeywords.keywords.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {activity.extractedKeywords.keywords.slice(0, 3).map((keyword, index) => (
+                            <span 
+                              key={index}
+                              className="text-xs bg-white/10 text-white/70 px-2 py-1 rounded-full"
+                            >
+                              {keyword}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    <p className="text-sm text-white/90 mb-2">
-                      "{activity.rawTextInput}"
-                    </p>
-                    {activity.extractedKeywords?.keywords && activity.extractedKeywords.keywords.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {activity.extractedKeywords.keywords.slice(0, 3).map((keyword, index) => (
-                          <span 
-                            key={index}
-                            className="text-xs bg-white/10 text-white/70 px-2 py-1 rounded-full"
-                          >
-                            {keyword}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <span className="text-xs text-white/50 ml-4">
+                      {activity.timestamp && formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                    </span>
                   </div>
-                  <span className="text-xs text-white/50 ml-4">
-                    {activity.timestamp && formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
-                  </span>
+                </GlassmorphicCard>
+              ))
+            ) : (
+              <GlassmorphicCard className="p-8 text-center">
+                <div className="text-4xl mb-4">🎯</div>
+                <h3 className="font-semibold mb-2">Start Your Journey</h3>
+                <p className="text-white/70 text-sm mb-4">
+                  Use the voice button below to log your first wellness activity
+                </p>
+                <div className="space-y-2 text-xs text-white/50">
+                  <p>Try saying:</p>
+                  <p>"I did a 30 minute workout"</p>
+                  <p>"I meditated for 10 minutes"</p>
+                  <p>"I had a healthy lunch"</p>
                 </div>
               </GlassmorphicCard>
-            ))
-          ) : (
-            <GlassmorphicCard className="p-8 text-center">
-              <div className="text-4xl mb-4">🎯</div>
-              <h3 className="font-semibold mb-2">Start Your Journey</h3>
-              <p className="text-white/70 text-sm mb-4">
-                Use the voice button below to log your first wellness activity
-              </p>
-              <p className="text-xs text-white/50">
-                Try saying: "I did a 30 minute workout" or "I meditated for 10 minutes"
-              </p>
-            </GlassmorphicCard>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Floating Voice Button */}
@@ -251,6 +305,7 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
               <Button 
                 variant="ghost" 
                 className="flex flex-col items-center space-y-1 py-3 px-4 rounded-2xl hover:bg-white/10 transition-all duration-300"
+                onClick={handleVoiceActivate}
               >
                 <Mic className="w-6 h-6 text-white/70" />
                 <span className="text-xs text-white/70 font-medium">Voice Log</span>
@@ -273,6 +328,12 @@ export default function MVPDashboard({ user }: MVPDashboardProps) {
         isVisible={isVoiceActive}
         onStop={handleVoiceStop}
         isListening={isListening}
+        showTextInput={showTextInput}
+        textInput={textInput}
+        onTextInputChange={setTextInput}
+        onTextSubmit={handleOverlayTextSubmit}
+        onToggleTextInput={toggleTextInput}
+        speechSupported={speechSupported}
       />
     </div>
   );

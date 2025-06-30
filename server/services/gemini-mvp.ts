@@ -1,7 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 import { type MVPIntentType } from "@shared/schema";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "" });
+// Initialize with proper error handling
+const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+let ai: GoogleGenAI | null = null;
+
+if (apiKey) {
+  ai = new GoogleGenAI({ apiKey });
+} else {
+  console.warn("GEMINI_API_KEY not configured - using fallback classification");
+}
 
 export interface MVPParseResult {
   intent: MVPIntentType;
@@ -13,7 +21,55 @@ export interface MVPParseResult {
 }
 
 export class GeminiMVPService {
+  private fallbackClassification(text: string): MVPParseResult {
+    const lowerText = text.toLowerCase();
+    let intent: MVPIntentType = "general_activity_log";
+    const keywords: string[] = [];
+    
+    // Simple keyword-based classification
+    if (lowerText.includes("workout") || lowerText.includes("exercise") || 
+        lowerText.includes("run") || lowerText.includes("gym") || 
+        lowerText.includes("training") || lowerText.includes("yoga")) {
+      intent = "workout";
+      keywords.push("exercise");
+    } else if (lowerText.includes("ate") || lowerText.includes("food") || 
+               lowerText.includes("lunch") || lowerText.includes("dinner") || 
+               lowerText.includes("breakfast") || lowerText.includes("meal")) {
+      intent = "food_intake";
+      keywords.push("food");
+    } else if (lowerText.includes("vitamin") || lowerText.includes("supplement") || 
+               lowerText.includes("pill") || lowerText.includes("took")) {
+      intent = "supplement_intake";
+      keywords.push("supplement");
+    } else if (lowerText.includes("meditat") || lowerText.includes("breathing") || 
+               lowerText.includes("mindful") || lowerText.includes("relax")) {
+      intent = "meditation";
+      keywords.push("meditation");
+    }
+    
+    // Extract basic keywords
+    const words = text.split(' ').filter(word => word.length > 2);
+    keywords.push(...words.slice(0, 3));
+    
+    // Extract duration if mentioned
+    const durationMatch = text.match(/(\d+)\s*(minute|hour|min|hr)/i);
+    const duration = durationMatch ? `${durationMatch[1]} ${durationMatch[2]}` : undefined;
+    
+    return {
+      intent,
+      keywords: keywords.slice(0, 5),
+      duration,
+      confidence: 0.7 // Reasonable confidence for keyword matching
+    };
+  }
+
   async parseActivityIntent(voiceText: string, userGoal?: string): Promise<MVPParseResult> {
+    // If no API key, use fallback immediately
+    if (!ai) {
+      console.log("Using fallback classification for:", voiceText);
+      return this.fallbackClassification(voiceText);
+    }
+
     try {
       const systemPrompt = `You are an AI wellness assistant that classifies user activity logs into simple categories.
 
@@ -82,13 +138,8 @@ Extract 3-5 relevant keywords. Include duration, intensity, or quantity only if 
         throw new Error("Empty response from model");
       }
     } catch (error) {
-      console.error("Failed to parse activity intent:", error);
-      // Fallback classification
-      return {
-        intent: "general_activity_log",
-        keywords: voiceText.split(' ').slice(0, 3),
-        confidence: 0.3
-      };
+      console.error("Gemini API error, using fallback:", error);
+      return this.fallbackClassification(voiceText);
     }
   }
 }

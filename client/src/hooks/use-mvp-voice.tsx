@@ -12,15 +12,22 @@ interface MVPVoiceLogResponse {
   confidence: number;
 }
 
+// Check if speech recognition is supported
+const checkSpeechSupport = (): boolean => {
+  return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+};
+
 export function useMVPVoice() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [showTextInput, setShowTextInput] = useState(false);
+  const [textInput, setTextInput] = useState("");
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const voiceLogMutation = useMutation({
-    mutationFn: async (voiceText: string): Promise<MVPVoiceLogResponse> => {
+    mutationFn: async (inputText: string): Promise<MVPVoiceLogResponse> => {
       // Get user from localStorage for MVP
       const savedUser = localStorage.getItem('evolve_user');
       if (!savedUser) {
@@ -30,7 +37,7 @@ export function useMVPVoice() {
 
       const response = await apiRequest("POST", "/api/mvp/voice/log", {
         userId: user.id,
-        voiceText
+        voiceText: inputText
       });
       return response.json();
     },
@@ -57,21 +64,24 @@ export function useMVPVoice() {
       }
     },
     onError: (error) => {
+      console.error("Voice processing error:", error);
       toast({
         title: "Voice Processing Error",
-        description: "Failed to process your voice input. Please try again.",
+        description: "Failed to process your input. Please try again.",
         variant: "destructive",
       });
     },
   });
 
   const startListening = useCallback(() => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    // Check if speech recognition is supported
+    if (!checkSpeechSupport()) {
       toast({
         title: "Speech Recognition Not Supported",
-        description: "Your browser doesn't support speech recognition.",
+        description: "Your browser doesn't support speech recognition. You can type instead.",
         variant: "destructive",
       });
+      setShowTextInput(true);
       return;
     }
 
@@ -85,6 +95,7 @@ export function useMVPVoice() {
     recognition.onstart = () => {
       setIsListening(true);
       setTranscript("");
+      setShowTextInput(false);
     };
 
     recognition.onresult = (event) => {
@@ -108,9 +119,32 @@ export function useMVPVoice() {
 
     recognition.onerror = (event) => {
       setIsListening(false);
+      let errorMessage = "Speech recognition error occurred.";
+      
+      switch(event.error) {
+        case 'no-speech':
+          errorMessage = "No speech detected. Please try again or use text input.";
+          setShowTextInput(true);
+          break;
+        case 'audio-capture':
+          errorMessage = "Microphone not accessible. Please check permissions or use text input.";
+          setShowTextInput(true);
+          break;
+        case 'not-allowed':
+          errorMessage = "Microphone permission denied. You can type instead.";
+          setShowTextInput(true);
+          break;
+        case 'network':
+          errorMessage = "Network error. Please check your connection.";
+          break;
+        default:
+          errorMessage = "Speech recognition failed. You can type instead.";
+          setShowTextInput(true);
+      }
+      
       toast({
-        title: "Speech Recognition Error",
-        description: "Error occurred in recognition: " + event.error,
+        title: "Voice Input Error",
+        description: errorMessage,
         variant: "destructive",
       });
     };
@@ -126,11 +160,32 @@ export function useMVPVoice() {
     setIsListening(false);
   }, []);
 
+  const handleTextSubmit = useCallback((text: string) => {
+    if (text.trim()) {
+      voiceLogMutation.mutate(text.trim());
+      setTextInput("");
+      setShowTextInput(false);
+    }
+  }, [voiceLogMutation]);
+
+  const toggleTextInput = useCallback(() => {
+    setShowTextInput(!showTextInput);
+    if (isListening) {
+      stopListening();
+    }
+  }, [showTextInput, isListening, stopListening]);
+
   return {
     isListening,
     transcript,
+    showTextInput,
+    textInput,
+    setTextInput,
     startListening,
     stopListening,
+    handleTextSubmit,
+    toggleTextInput,
     isProcessing: voiceLogMutation.isPending,
+    speechSupported: checkSpeechSupport(),
   };
 }
