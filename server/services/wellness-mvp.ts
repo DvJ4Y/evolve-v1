@@ -118,10 +118,18 @@ export class MVPWellnessService {
   }
 
   async getMVPDashboardData(userId: number) {
+    console.log(`📊 Getting dashboard data for user ${userId}`);
+    
     const user = await mvpStorage.getUser(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) {
+      console.error(`❌ User ${userId} not found in getMVPDashboardData`);
+      throw new Error("User not found");
+    }
+
+    console.log(`✅ Found user: ${user.name} (${user.email})`);
 
     const recentActivities = await mvpStorage.getMvpActivityLogs(userId, 10);
+    console.log(`📋 Retrieved ${recentActivities.length} recent activities`);
 
     // Calculate today's activities
     const today = new Date().toDateString();
@@ -135,13 +143,17 @@ export class MVPWellnessService {
       return acc;
     }, {} as Record<string, number>);
 
-    return {
+    const dashboardData = {
       user,
       recentActivities,
       totalActivities: recentActivities.length,
       todayActivities: todayActivities.length,
       activityBreakdown
     };
+
+    console.log(`✅ Dashboard data compiled: ${dashboardData.totalActivities} total, ${dashboardData.todayActivities} today`);
+    
+    return dashboardData;
   }
 
   async getAIStatus(): Promise<{ status: 'healthy' | 'degraded' | 'unhealthy', details: string }> {

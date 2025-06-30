@@ -60,7 +60,7 @@ export class MVPDatabaseStorage implements IMVPStorage {
     return this.withFallback(
       async () => {
         const db = getDatabase()!;
-        const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+        const result = await db.select().from(users).where(eq(users.id, id.toString())).limit(1);
         return result[0];
       },
       () => this.memStorage.getUser(id),
@@ -84,7 +84,11 @@ export class MVPDatabaseStorage implements IMVPStorage {
     return this.withFallback(
       async () => {
         const db = getDatabase()!;
-        const result = await db.insert(users).values(insertUser).returning();
+        const userWithId = {
+          ...insertUser,
+          id: Date.now().toString() // Generate string ID for database
+        };
+        const result = await db.insert(users).values(userWithId).returning();
         return result[0];
       },
       () => this.memStorage.createUser(insertUser),
@@ -96,7 +100,7 @@ export class MVPDatabaseStorage implements IMVPStorage {
     return this.withFallback(
       async () => {
         const db = getDatabase()!;
-        const result = await db.update(users).set(updates).where(eq(users.id, id)).returning();
+        const result = await db.update(users).set(updates).where(eq(users.id, id.toString())).returning();
         return result[0];
       },
       () => this.memStorage.updateUser(id, updates),
@@ -108,7 +112,11 @@ export class MVPDatabaseStorage implements IMVPStorage {
     return this.withFallback(
       async () => {
         const db = getDatabase()!;
-        const result = await db.insert(mvpActivityLogs).values(activity).returning();
+        const activityWithStringUserId = {
+          ...activity,
+          userId: activity.userId.toString()
+        };
+        const result = await db.insert(mvpActivityLogs).values(activityWithStringUserId).returning();
         return result[0];
       },
       () => this.memStorage.createMvpActivityLog(activity),
@@ -123,7 +131,7 @@ export class MVPDatabaseStorage implements IMVPStorage {
         const result = await db
           .select()
           .from(mvpActivityLogs)
-          .where(eq(mvpActivityLogs.userId, userId))
+          .where(eq(mvpActivityLogs.userId, userId.toString()))
           .orderBy(desc(mvpActivityLogs.timestamp))
           .limit(limit);
         return result;
@@ -152,68 +160,96 @@ export class MVPMemStorage implements IMVPStorage {
   }
 
   private async createDemoData() {
-    // Create primary demo user
-    const demoUser: InsertUser = {
-      name: "Alex Johnson",
-      email: "alex@evolveai.com",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150",
-      age: 28,
-      primaryWellnessGoal: "I want to stay healthy and reduce stress through regular exercise and meditation",
-      goals: {
-        body: ["Exercise 3 times a week", "Maintain healthy weight"],
-        mind: ["Meditate daily", "Reduce work stress"],
-        soul: ["Practice gratitude", "Connect with nature"]
-      }
-    };
-
-    const user = await this.createUser(demoUser);
-    
-    // Create some sample activities for demo
-    const sampleActivities = [
+    // Create multiple demo users to handle different user IDs
+    const demoUsers = [
       {
-        userId: user.id,
-        rawTextInput: "I did a 30 minute HIIT workout this morning",
-        detectedIntent: "workout" as const,
-        extractedKeywords: {
-          keywords: ["HIIT", "workout", "morning"],
-          duration: "30 minutes",
-          intensity: "high"
+        name: "Alex Johnson",
+        email: "alex@evolveai.com",
+        avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150",
+        age: 28,
+        primaryWellnessGoal: "I want to stay healthy and reduce stress through regular exercise and meditation",
+        goals: {
+          body: ["Exercise 3 times a week", "Maintain healthy weight"],
+          mind: ["Meditate daily", "Reduce work stress"],
+          soul: ["Practice gratitude", "Connect with nature"]
         }
       },
       {
-        userId: user.id,
-        rawTextInput: "Had a healthy chicken salad for lunch",
-        detectedIntent: "food_intake" as const,
-        extractedKeywords: {
-          keywords: ["chicken", "salad", "lunch"],
-          quantity: "1 serving"
+        name: "Sarah Chen",
+        email: "sarah@evolveai.com", 
+        avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150",
+        age: 32,
+        primaryWellnessGoal: "I want to build strength and improve my mental clarity through fitness and mindfulness",
+        goals: {
+          body: ["Strength training 4x per week", "Improve flexibility"],
+          mind: ["Daily meditation", "Read more books"],
+          soul: ["Practice mindfulness", "Volunteer regularly"]
         }
       },
       {
-        userId: user.id,
-        rawTextInput: "Took my daily vitamin D supplement",
-        detectedIntent: "supplement_intake" as const,
-        extractedKeywords: {
-          keywords: ["vitamin", "D", "supplement"],
-          quantity: "1 capsule"
-        }
-      },
-      {
-        userId: user.id,
-        rawTextInput: "Meditated for 15 minutes before work",
-        detectedIntent: "meditation" as const,
-        extractedKeywords: {
-          keywords: ["meditated", "work", "morning"],
-          duration: "15 minutes"
+        name: "Mike Rodriguez",
+        email: "mike@evolveai.com",
+        avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&h=150",
+        age: 25,
+        primaryWellnessGoal: "I want to maintain work-life balance and stay physically active",
+        goals: {
+          body: ["Run 3 times a week", "Eat healthier meals"],
+          mind: ["Reduce screen time", "Practice deep breathing"],
+          soul: ["Spend time in nature", "Connect with friends"]
         }
       }
     ];
 
-    for (const activity of sampleActivities) {
-      await this.createMvpActivityLog(activity);
+    for (const userData of demoUsers) {
+      const user = await this.createUser(userData);
+      
+      // Create sample activities for each user
+      const sampleActivities = [
+        {
+          userId: user.id,
+          rawTextInput: "I did a 30 minute HIIT workout this morning",
+          detectedIntent: "workout" as const,
+          extractedKeywords: {
+            keywords: ["HIIT", "workout", "morning"],
+            duration: "30 minutes",
+            intensity: "high"
+          }
+        },
+        {
+          userId: user.id,
+          rawTextInput: "Had a healthy chicken salad for lunch",
+          detectedIntent: "food_intake" as const,
+          extractedKeywords: {
+            keywords: ["chicken", "salad", "lunch"],
+            quantity: "1 serving"
+          }
+        },
+        {
+          userId: user.id,
+          rawTextInput: "Took my daily vitamin D supplement",
+          detectedIntent: "supplement_intake" as const,
+          extractedKeywords: {
+            keywords: ["vitamin", "D", "supplement"],
+            quantity: "1 capsule"
+          }
+        },
+        {
+          userId: user.id,
+          rawTextInput: "Meditated for 15 minutes before work",
+          detectedIntent: "meditation" as const,
+          extractedKeywords: {
+            keywords: ["meditated", "work", "morning"],
+            duration: "15 minutes"
+          }
+        }
+      ];
+
+      for (const activity of sampleActivities) {
+        await this.createMvpActivityLog(activity);
+      }
     }
 
-    console.log("✅ Demo data created successfully");
+    console.log(`✅ Demo data created successfully for ${demoUsers.length} users`);
   }
 
   async healthCheck(): Promise<{ status: 'healthy' | 'degraded', details: string }> {
@@ -224,7 +260,11 @@ export class MVPMemStorage implements IMVPStorage {
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const user = this.users.get(id);
+    if (!user) {
+      console.warn(`⚠️  User ${id} not found in memory storage. Available users: ${Array.from(this.users.keys()).join(', ')}`);
+    }
+    return user;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
@@ -234,7 +274,7 @@ export class MVPMemStorage implements IMVPStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     const user: User = {
-      id,
+      id: id.toString(), // Convert to string to match schema
       name: insertUser.name,
       email: insertUser.email,
       avatar: insertUser.avatar || null,
@@ -249,12 +289,16 @@ export class MVPMemStorage implements IMVPStorage {
       createdAt: new Date(),
     };
     this.users.set(id, user);
+    console.log(`✅ Created user ${id}: ${user.name} (${user.email})`);
     return user;
   }
 
   async updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined> {
     const user = this.users.get(id);
-    if (!user) return undefined;
+    if (!user) {
+      console.warn(`⚠️  Cannot update user ${id} - not found`);
+      return undefined;
+    }
 
     const updatedUser: User = {
       ...user,
@@ -265,6 +309,7 @@ export class MVPMemStorage implements IMVPStorage {
       longestStreak: user.longestStreak,
     };
     this.users.set(id, updatedUser);
+    console.log(`✅ Updated user ${id}: ${updatedUser.name}`);
     return updatedUser;
   }
 
@@ -272,7 +317,7 @@ export class MVPMemStorage implements IMVPStorage {
     const id = this.currentActivityId++;
     const activityLog: MvpActivityLog = {
       id,
-      userId: activity.userId,
+      userId: activity.userId.toString(), // Ensure string type
       rawTextInput: activity.rawTextInput,
       detectedIntent: activity.detectedIntent,
       extractedKeywords: activity.extractedKeywords || null,
@@ -280,14 +325,18 @@ export class MVPMemStorage implements IMVPStorage {
       createdAt: new Date(),
     };
     this.mvpActivityLogs.set(id, activityLog);
+    console.log(`✅ Created activity ${id} for user ${activity.userId}: ${activity.detectedIntent}`);
     return activityLog;
   }
 
   async getMvpActivityLogs(userId: number, limit = 50): Promise<MvpActivityLog[]> {
-    return Array.from(this.mvpActivityLogs.values())
-      .filter(log => log.userId === userId)
+    const activities = Array.from(this.mvpActivityLogs.values())
+      .filter(log => parseInt(log.userId) === userId)
       .sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0))
       .slice(0, limit);
+    
+    console.log(`📋 Retrieved ${activities.length} activities for user ${userId}`);
+    return activities;
   }
 }
 

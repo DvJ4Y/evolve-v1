@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
+  id: text("id").primaryKey(), // Changed to text to match Supabase auth.users.id
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   avatar: text("avatar"),
@@ -31,16 +31,17 @@ export const users = pgTable("users", {
 // MVP Activity Logs - Simplified for quick launch
 export const mvpActivityLogs = pgTable("mvp_activity_logs", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
   rawTextInput: text("raw_text_input").notNull(),
   detectedIntent: text("detected_intent", { 
     enum: ["workout", "food_intake", "supplement_intake", "meditation", "general_activity_log"] 
   }).notNull(),
-  extractedKeywords: jsonb("extracted_keywords_json").$type<{
+  extractedKeywords: jsonb("extracted_keywords").$type<{
     keywords: string[];
     duration?: string;
     intensity?: string;
     quantity?: string;
+    confidence?: number;
     [key: string]: any;
   }>(),
   timestamp: timestamp("timestamp").defaultNow(),

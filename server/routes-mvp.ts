@@ -70,6 +70,10 @@ export async function registerMVPRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/validate/:userId", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
       const user = await mvpStorage.getUser(userId);
       
       if (!user) {
@@ -78,6 +82,7 @@ export async function registerMVPRoutes(app: Express): Promise<Server> {
       
       res.json({ valid: true, user });
     } catch (error) {
+      console.error("❌ Session validation failed:", error);
       res.status(500).json({ message: "Validation failed" });
     }
   });
@@ -136,9 +141,10 @@ export async function registerMVPRoutes(app: Express): Promise<Server> {
       // Validate user exists
       const user = await mvpStorage.getUser(userId);
       if (!user) {
+        console.error(`❌ User ${userId} not found for voice logging`);
         return res.status(404).json({ 
           success: false,
-          message: "User not found" 
+          message: "User not found. Please sign in again." 
         });
       }
       
@@ -181,7 +187,7 @@ export async function registerMVPRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // MVP Dashboard data
+  // MVP Dashboard data with enhanced error handling
   app.get("/api/mvp/dashboard/:userId", async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);
@@ -190,15 +196,17 @@ export async function registerMVPRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid user ID" });
       }
       
+      console.log(`📊 Fetching dashboard data for user ${userId}`);
+      
       const data = await mvpWellnessService.getMVPDashboardData(userId);
-      console.log(`📊 Dashboard data retrieved for user ${userId}`);
+      console.log(`✅ Dashboard data retrieved for user ${userId}: ${data.totalActivities} activities`);
       
       res.json(data);
     } catch (error) {
       console.error("❌ Dashboard data fetch failed:", error);
       
       if (error.message === "User not found") {
-        res.status(404).json({ message: "User not found" });
+        res.status(404).json({ message: "User not found. Please sign in again." });
       } else {
         res.status(500).json({ 
           message: "Failed to load dashboard data",
