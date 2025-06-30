@@ -196,8 +196,7 @@ export function useMVPVoice() {
             errorMessage = "Microphone permission denied. You can type instead.";
             break;
           case 'network':
-            errorMessage = "Network error. Please check your connection.";
-            shouldShowTextInput = false;
+            errorMessage = "Network error with speech service. You can type instead.";
             break;
           case 'service-not-allowed':
             errorMessage = "Speech service not allowed. You can type instead.";

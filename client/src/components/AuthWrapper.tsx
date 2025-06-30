@@ -23,19 +23,24 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check for existing user session
-    const savedUser = localStorage.getItem('evolve_user');
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        // Validate user session with server
-        validateUserSession(parsedUser);
-      } catch (error) {
-        console.error("Invalid user data in localStorage:", error);
-        localStorage.removeItem('evolve_user');
+    const initializeAuth = async () => {
+      // Check for existing user session
+      const savedUser = localStorage.getItem('evolve_user');
+      if (savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          // Validate user session with server and wait for completion
+          await validateUserSession(parsedUser);
+        } catch (error) {
+          console.error("Invalid user data in localStorage:", error);
+          localStorage.removeItem('evolve_user');
+        }
       }
-    }
-    setIsLoading(false);
+      // Only set loading to false after validation is complete
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const validateUserSession = async (userData: User) => {
